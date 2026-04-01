@@ -1,0 +1,31 @@
+# 🚫 Артефакты сборки .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# 🚫 Пользовательские настройки
+*.user
+*.suo
+*.userprefs
+
+# 🚫 Логи и временные файлы
+*.log
+logs/
+temp/
+/tmp/
+
+# 🚫 Секреты и конфиги разработки
+appsettings.Development.json
+.env
+*.secret
+
+# 🚫 IDE
+.vs/
+.idea/
+*.swp
+*.swo
+
+# 🚫 Node modules (если будут)
+node_modules/
