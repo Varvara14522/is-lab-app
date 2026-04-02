@@ -94,12 +94,32 @@ jobs:
           SHORT_SHA=${{ github.sha }}
           SHORT_SHA=${SHORT_SHA:0:7}
           
-          # Собираем образ с двумя тегами:
+      - name: Build and push Docker image
+        run: |
+          # Короткий SHA: первые 7 символов
+          SHORT_SHA=${{ github.sha }}
+          SHORT_SHA=${SHORT_SHA:0:7}
+          
+      - name: Build and push Docker image
+        run: |
+          # Короткий SHA: первые 7 символов
+          SHORT_SHA=${{ github.sha }}
+          SHORT_SHA=${SHORT_SHA:0:7}
+          
+          # Сборка с двумя тегами
           docker build \
             -t ghcr.io/varvara14522/is-lab-app:latest \
             -t ghcr.io/varvara14522/is-lab-app:$SHORT_SHA \
             -f Dockerfile \
             .
+          
+          # Публикация обоих тегов
+          docker push ghcr.io/varvara14522/is-lab-app:latest
+          docker push ghcr.io/varvara14522/is-lab-app:$SHORT_SHA            .
+          
+          # Публикация обоих тегов
+          docker push ghcr.io/varvara14522/is-lab-app:latest
+          docker push ghcr.io/varvara14522/is-lab-app:$SHORT_SHA            .
           
           # Публикуем оба тега в GHCR:
           docker push ghcr.io/varvara14522/is-lab-app:latest
