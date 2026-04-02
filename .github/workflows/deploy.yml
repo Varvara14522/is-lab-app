@@ -1,0 +1,61 @@
+# ============================================================
+# 🚀 GitHub Actions: Auto-Deploy via SSH
+# Запускается после успешной сборки в CI/CD пайплайне
+# ============================================================
+
+name: Auto-Deploy
+
+# Запускать ТОЛЬКО после успешного завершения пайплайна сборки
+on:
+  workflow_run:
+    workflows: ["varvara"]  # ← имя твоего первого workflow!
+    types:
+      - completed
+    branches:
+      - main
+
+# Права доступа
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # Запускать только если сборка прошла успешно
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ✅ Checkout кода (нужен для доступа к secrets)
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      # ✅ Подключение по SSH и деплой
+      - name: 🔐 Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          # Данные для подключения из Secrets:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          
+          # Команды на сервере:
+          script: |
+            echo "🚀 Starting deployment..."
+            
+            # 1. Login в GHCR для pull образов
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
+            
+            # 2. Перейти в папку деплоя
+            cd ${{ secrets.DEPLOY_PATH }}
+            
+            # 3. Подтянуть новые образы
+            docker compose pull
+            
+            # 4. Перезапустить стек
+            docker compose up -d
+            
+            # 5. (Опционально) Очистить старые образы
+            docker image prune -f
+            
+            # 6. Лог об успехе
+            echo "✅ Deployment completed!"
