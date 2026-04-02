@@ -1,0 +1,108 @@
+# ============================================================
+# 🔄 GitHub Actions CI/CD Pipeline для IsLabApp
+# ============================================================
+
+name: CI/CD Pipeline
+
+# Запускать при событиях:
+on:
+  push:
+    branches: [ "main" ]           # ✅ При пуше в main
+  pull_request:
+    branches: [ "main" ]           # ✅ При PR в main
+
+# Права доступа для токена:
+permissions:
+  contents: read
+  packages: write                  # ✅ Нужно для публикации в GHCR!
+
+jobs:
+  # ============================================================
+  # 🧪 Job: Сборка и тестирование
+  # ============================================================
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ✅ Checkout кода
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # ✅ Setup .NET SDK
+      - name: ⚙️ Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # ✅ dotnet restore
+      - name: 📦 Restore dependencies
+        run: dotnet restore
+
+      # ✅ dotnet build
+      - name: 🔨 Build application
+        run: dotnet build --no-restore --configuration Release
+
+      # ✅ dotnet test
+      - name: 🧪 Run tests
+        run: dotnet test --no-build --verbosity normal
+
+      # ✅ Сборка Docker образа (для тестов, без публикации)
+      - name: 🐳 Build Docker image
+        run: |
+          docker build \
+            -t ghcr.io/varvara14522/is-lab-app:test \
+            -f Dockerfile \
+            .
+
+  # ============================================================
+  # 📦 Job: Публикация в GHCR (только при push в main)
+  # ============================================================
+  publish:
+    needs: build-and-test                          # Запускается после успешных тестов
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'  # Только при пуше в main!
+    
+    steps:
+      # ✅ Checkout кода
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # ✅ Login в GHCR
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}      # ← Ваш секрет из Settings!
+
+      # ✅ Сборка Docker-образа с тегами
+      - name: 🏷️ Prepare image tags
+        run: |
+          echo "IMAGE_NAME=ghcr.io/varvara14522/is-lab-app" >> $GITHUB_ENV
+          echo "SHORT_SHA=${{ github.sha }}" >> $GITHUB_ENV
+
+      # ✅ Build and push образа с тегами
+      - name: 🐳 Build and push Docker image
+        run: |
+          # Собираем образ с двумя тегами:
+          # 1. :latest — всегда последняя стабильная версия
+          # 2. :<commit-sha> — уникальная версия для каждого коммита
+          
+          docker build \
+            -t ${{ env.IMAGE_NAME }}:latest \
+            -t ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }} \
+            -f Dockerfile \
+            .
+          
+          # Публикуем оба тега в GHCR:
+          docker push ${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
+
+      # ✅ Лог об успешной публикации
+      - name: ✅ Deployment complete
+        run: |
+          echo "🎉 Image published successfully!"
+          echo "📦 Tags:"
+          echo "   - ${{ env.IMAGE_NAME }}:latest"
+          echo "   - ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}"
+          echo "🔗 View package: https://github.com/varvara14522/is-lab-app/pkgs/container/is-lab-app"
