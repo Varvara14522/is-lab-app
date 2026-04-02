@@ -17,28 +17,21 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Задание 3: диагностические эндпоинты
-app.MapGet("/health", () =>
+// Задание 3: /health
+app.MapGet("/health", () => Results.Json(new { status = "ok", timestamp = DateTime.UtcNow }));
+
+// Задание 3: /version
+app.MapGet("/version", (IConfiguration cfg) => 
 {
-    return Results.Json(new
-    {
-        status = "ok",
-        timestamp = DateTime.UtcNow,
-        localTime = DateTime.Now
-    });
+    var name = cfg["App:Name"] ?? "Unknown";
+    var ver = cfg["App:Version"] ?? "0.0.0";
+    return Results.Json(new { application = name, version = ver });
 });
 
-app.MapGet("/version", (IConfiguration config) =>
-{
-    return Results.Json(new
-    {
-        application = config["App:Name"] ?? "Unknown",
-        version = config["App:Version"] ?? "0.0.0"
-    });
-});
-
-// Задание 4: эндпоинты заметок
+// Задание 4: заметки
 app.MapNotesEndpoints();
 
+// Задание 5: база данных
 app.MapDatabaseEndpoints();
+
 app.Run();
