@@ -48,7 +48,6 @@ jobs:
 
       # ✅ Сборка Docker образа (для тестов, без публикации)
       - name: 🐳 Build Docker image
-        run: |
           docker build \
             -t ghcr.io/varvara14522/is-lab-app:test \
             -f Dockerfile \
@@ -69,7 +68,6 @@ jobs:
 
       # ✅ Login в GHCR
       - name: 🐳 Build and push Docker image
-        run: |
           # Короткий SHA: первые 7 символов коммита
           SHORT_SHA=${{ github.sha }}
           SHORT_SHA=${SHORT_SHA:0:7}
@@ -96,12 +94,10 @@ jobs:
 
       # ✅ Сборка Docker-образа с тегами
       - name: 🏷️ Prepare image tags
-        run: |
           echo "IMAGE_NAME=ghcr.io/varvara14522/is-lab-app" >> $GITHUB_ENV
           echo "SHORT_SHA=${{ github.sha }}" >> $GITHUB_ENV
 
       # ✅ Build and push образа с тегами
-        run: |
           # Собираем образ с двумя тегами:
           # 1. :latest — всегда последняя стабильная версия
           # 2. :<commit-sha> — уникальная версия для каждого коммита
