@@ -1,140 +1,54 @@
-# ============================================================
-# 🔄 GitHub Actions CI/CD Pipeline для IsLabApp
-# ============================================================
-
 name: CI/CD Pipeline
 
-# Запускать при событиях:
 on:
   push:
-    branches: [ "main" ]           # ✅ При пуше в main
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]           # ✅ При PR в main
-
-# Права доступа для токена:
-permissions:
-  contents: read
-  packages: write                  # ✅ Нужно для публикации в GHCR!
+    branches: [ main ]
 
 jobs:
-  # ============================================================
-  # 🧪 Job: Сборка и тестирование
-  # ============================================================
   build-and-test:
     runs-on: ubuntu-latest
-    
     steps:
-      # ✅ Checkout кода
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      # ✅ Setup .NET SDK
-      - name: ⚙️ Setup .NET 8 SDK
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v3
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
-
-      # ✅ dotnet restore
-      - name: 📦 Restore dependencies
+      - name: Restore
         run: dotnet restore
-
-      # ✅ dotnet build
-      - name: 🔨 Build application
-        run: dotnet build --no-restore --configuration Release
-
-      # ✅ dotnet test
-      - name: 🧪 Run tests
+      - name: Build
+        run: dotnet build --no-restore
+      - name: Test
         run: dotnet test --no-build --verbosity normal
 
-      # ✅ Сборка Docker образа (для тестов, без публикации)
-      - name: 🐳 Build Docker image
-          docker build \
-            -t ghcr.io/varvara14522/is-lab-app:test \
-            -f Dockerfile \
-            .
-
-  # ============================================================
-  # 📦 Job: Публикация в GHCR (только при push в main)
-  # ============================================================
-  publish:
-    needs: build-and-test                          # Запускается после успешных тестов
+  docker-build-push:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'  # Только при пуше в main!
-    
+    needs: build-and-test
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
     steps:
-      # ✅ Checkout кода
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      # ✅ Login в GHCR
-      - name: 🐳 Build and push Docker image
-          # Короткий SHA: первые 7 символов коммита
-          SHORT_SHA=${{ github.sha }}
-          SHORT_SHA=${SHORT_SHA:0:7}
-          
-          # Сборка образа с двумя тегами
-          docker build \
-            -t ghcr.io/varvara14522/is-lab-app:latest \
-            -t ghcr.io/varvara14522/is-lab-app:$SHORT_SHA \
-            -f Dockerfile \
-            .
-          
-          # Публикация обоих тегов
-          docker push ghcr.io/varvara14522/is-lab-app:latest
-          docker push ghcr.io/varvara14522/is-lab-app:$SHORT_SHA
-          
-          # Лог для подтверждения
-          echo "✅ Pushed tags: latest, $SHORT_SHA"
-      - name: 🔐 Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}      # ← Ваш секрет из Settings!
-
-      # ✅ Сборка Docker-образа с тегами
-      - name: 🏷️ Prepare image tags
-          echo "IMAGE_NAME=ghcr.io/varvara14522/is-lab-app" >> $GITHUB_ENV
-          echo "SHORT_SHA=${{ github.sha }}" >> $GITHUB_ENV
-
-      # ✅ Build and push образа с тегами
-          # Собираем образ с двумя тегами:
-          # 1. :latest — всегда последняя стабильная версия
-          # 2. :<commit-sha> — уникальная версия для каждого коммита
-          
-        run: |
-          # Создаём короткий SHA (первые 7 символов коммита)
-          SHORT_SHA=${{ github.sha }}
-          SHORT_SHA=${SHORT_SHA:0:7}
-          
-        run: |
-          # Короткий SHA: первые 7 символов
-          SHORT_SHA=${{ github.sha }}
-          SHORT_SHA=${SHORT_SHA:0:7}
-          
-        run: |
-          # Короткий SHA: первые 7 символов
-          SHORT_SHA=${{ github.sha }}
-          SHORT_SHA=${SHORT_SHA:0:7}
-          
-          # Сборка с двумя тегами
-          docker build \
-            -t ghcr.io/varvara14522/is-lab-app:latest \
-            -t ghcr.io/varvara14522/is-lab-app:$SHORT_SHA \
-            -f Dockerfile \
-            .
-          
-          # Публикация обоих тегов
-          docker push ghcr.io/varvara14522/is-lab-app:latest
-          docker push ghcr.io/varvara14522/is-lab-app:$SHORT_SHA            .
-          
-          # Публикация обоих тегов
-          docker push ghcr.io/varvara14522/is-lab-app:latest
-          docker push ghcr.io/varvara14522/is-lab-app:$SHORT_SHA            .
-          
-          # Публикуем оба тега в GHCR:
-          docker push ghcr.io/varvara14522/is-lab-app:latest
-          docker push ghcr.io/varvara14522/is-lab-app:$SHORT_SHA
-          
-          # Логируем результат:
-          echo "✅ Pushed tags: latest, $SHORT_SHA"
+username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ghcr.io/${{ github.repository }}/isapp
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
