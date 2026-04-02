@@ -88,21 +88,22 @@ jobs:
           # 1. :latest — всегда последняя стабильная версия
           # 2. :<commit-sha> — уникальная версия для каждого коммита
           
+      - name: 🐳 Build and push Docker image
+        run: |
+          # Создаём короткий SHA (первые 7 символов коммита)
+          SHORT_SHA=${{ github.sha }}
+          SHORT_SHA=${SHORT_SHA:0:7}
+          
+          # Собираем образ с двумя тегами:
           docker build \
-            -t ${{ env.IMAGE_NAME }}:latest \
-            -t ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }} \
+            -t ghcr.io/varvara14522/is-lab-app:latest \
+            -t ghcr.io/varvara14522/is-lab-app:$SHORT_SHA \
             -f Dockerfile \
             .
           
           # Публикуем оба тега в GHCR:
-          docker push ${{ env.IMAGE_NAME }}:latest
-          docker push ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}
-
-      # ✅ Лог об успешной публикации
-      - name: ✅ Deployment complete
-        run: |
-          echo "🎉 Image published successfully!"
-          echo "📦 Tags:"
-          echo "   - ${{ env.IMAGE_NAME }}:latest"
-          echo "   - ${{ env.IMAGE_NAME }}:${{ env.SHORT_SHA }}"
-          echo "🔗 View package: https://github.com/varvara14522/is-lab-app/pkgs/container/is-lab-app"
+          docker push ghcr.io/varvara14522/is-lab-app:latest
+          docker push ghcr.io/varvara14522/is-lab-app:$SHORT_SHA
+          
+          # Логируем результат:
+          echo "✅ Pushed tags: latest, $SHORT_SHA"
